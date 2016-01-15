@@ -28,6 +28,9 @@ with {}
       current += 1
       arguments[current]
 
+    peek = ->
+      arguments[current + 1]
+
     cliArgs = {}
 
     for arg in next
@@ -35,7 +38,13 @@ with {}
         table.insert cliArgs, arg for arg in next
         break
       elseif opt = options[arg]
-        params = [ next! for i=1, opt.paramCount ]
+        params = for i=1, opt.paramCount
+          with param = peek!
+            break if not param
+            break if options[param]
+            break if param == '--'
+            next!
+
         opt.callback unpack params
       else
         table.insert cliArgs, arg

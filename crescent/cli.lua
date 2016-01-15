@@ -39,6 +39,10 @@ do
       current = current + 1
       return arguments[current]
     end
+    local peek
+    peek = function()
+      return arguments[current + 1]
+    end
     local cliArgs = { }
     for arg in next do
       if arg == '--' then
@@ -55,7 +59,20 @@ do
               local _accum_0 = { }
               local _len_0 = 1
               for i = 1, opt.paramCount do
-                _accum_0[_len_0] = next()
+                do
+                  local param = peek()
+                  if not param then
+                    break
+                  end
+                  if options[param] then
+                    break
+                  end
+                  if param == '--' then
+                    break
+                  end
+                  next()
+                  _accum_0[_len_0] = param
+                end
                 _len_0 = _len_0 + 1
               end
               params = _accum_0

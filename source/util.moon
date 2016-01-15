@@ -10,7 +10,7 @@ with {}
       (__tostring: => '%d.%d.%d'\format major, minor, patch)
 
   .escapePattern = (pattern) ->
-    pattern\gsub '[%^%$%(%)%%%.%[%]%*%+%-%?]', (char) -> char
+    pattern\gsub '[%^%$%(%)%%%.%[%]%*%+%-%?]', (char) -> '%' .. char
 
   .getExtension = (path) ->
     (.getBasename path)\match '%.([^%.]+)$'
@@ -19,7 +19,7 @@ with {}
     "#{ path\gsub '%.[^%.]+$', '' }.#{ extension }"
 
   .getFolder = (path) ->
-    (path\match '(.*)[\\/]+[^\\/]+') or '.'
+    (path\match '^(.*)[\\/]+') or '.'
 
   .getBasename = (path) ->
     path\match '[^\\/]*$'

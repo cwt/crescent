@@ -19,7 +19,7 @@ do
   end
   _with_0.escapePattern = function(pattern)
     return pattern:gsub('[%^%$%(%)%%%.%[%]%*%+%-%?]', function(char)
-      return char
+      return '%' .. char
     end)
   end
   _with_0.getExtension = function(path)
@@ -29,7 +29,7 @@ do
     return tostring(path:gsub('%.[^%.]+$', '')) .. "." .. tostring(extension)
   end
   _with_0.getFolder = function(path)
-    return (path:match('(.*)[\\/]+[^\\/]+')) or '.'
+    return (path:match('^(.*)[\\/]+')) or '.'
   end
   _with_0.getBasename = function(path)
     return path:match('[^\\/]*$')

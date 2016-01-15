@@ -1,5 +1,4 @@
-local attributes
-attributes = require('lfs').attributes
+local fs = require('lfs')
 local sleep
 sleep = require('socket').sleep
 local collectFiles
@@ -13,7 +12,7 @@ do
     for _index_0 = 1, #_list_0 do
       local collectedFile = _list_0[_index_0]
       currentFiles[collectedFile] = {
-        modtime = attributes(collectedFile, 'modification')
+        modtime = fs.attributes(collectedFile, 'modification')
       }
     end
     local filesArray
@@ -33,22 +32,21 @@ do
       local _list_1 = collectFiles(watchPath)
       for _index_0 = 1, #_list_1 do
         local file = _list_1[_index_0]
-        do
-          local modtime = attributes(file, 'modification')
-          if modtime then
-            if currentFiles[file] then
-              if modtime > currentFiles[file].modtime then
-                eventCallback('fileChanged', file)
-              end
-            else
-              eventCallback('fileCreated', file)
-            end
-            existing[file] = {
-              modtime = modtime
-            }
-          else
-            eventCallback('fileRemoved', file)
+        local modtime = fs.attributes(file, 'modification')
+        if currentFiles[file] then
+          if modtime > currentFiles[file].modtime then
+            eventCallback('fileChanged', file)
           end
+        else
+          eventCallback('fileCreated', file)
+        end
+        existing[file] = {
+          modtime = modtime
+        }
+      end
+      for file in pairs(currentFiles) do
+        if not existing[file] then
+          eventCallback('fileRemoved', file)
         end
       end
       currentFiles = existing

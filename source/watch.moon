@@ -1,4 +1,4 @@
-{:attributes} = require 'lfs'
+fs = require 'lfs'
 {:sleep} = require 'socket'
 {:collectFiles} = require 'crescent.util'
 
@@ -10,7 +10,7 @@ with {}
 
     for collectedFile in *collectFiles watchPath
       currentFiles[collectedFile] =
-        modtime: attributes collectedFile, 'modification'
+        modtime: fs.attributes collectedFile, 'modification'
 
     filesArray = [file for file in pairs currentFiles]
     eventCallback 'initialized', filesArray
@@ -19,15 +19,17 @@ with {}
       existing = {}
 
       for file in *collectFiles watchPath
-        if modtime = attributes file, 'modification'
-          if currentFiles[file]
-            if modtime > currentFiles[file].modtime
-              eventCallback 'fileChanged', file
-          else
-            eventCallback 'fileCreated', file
-
-          existing[file] = :modtime
+        modtime = fs.attributes file, 'modification'
+        if currentFiles[file]
+          if modtime > currentFiles[file].modtime
+            eventCallback 'fileChanged', file
         else
+          eventCallback 'fileCreated', file
+
+        existing[file] = :modtime
+
+      for file in pairs currentFiles
+        if not existing[file]
           eventCallback 'fileRemoved', file
 
       currentFiles = existing

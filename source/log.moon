@@ -2,11 +2,18 @@ colors = require 'term.colors'
 inspect = require 'inspect'
 
 with log = {}
-  levels =
+  .levels =
     info: colors.dim
     success: colors.green
     error: colors.red
     warning: colors.yellow
+
+  enabledLevels = { level, true for level in pairs .levels }
+
+  .these = (levels) ->
+    enabledLevels = { level, true for level in *levels }
+
+  .colors = false
 
   concatArgs = (...) ->
     strings = for arg in *{...}
@@ -17,14 +24,12 @@ with log = {}
 
     table.concat strings, '\t'
 
-  logMessage = (message, color = colors.default) ->
-    print color "#{message}"
-
-  for level, color in pairs levels
+  for level, color in pairs .levels
     log[level] = (...) ->
-      space = ' '\rep 12 - #level
-      logMessage "#{level}#{space}#{concatArgs ...}", color
-
-  setmetatable log,
-    __call: (...) =>
-      logMessage concatArgs ...
+      if enabledLevels[level]
+        space = ' '\rep 12 - #level
+        message = "#{level}#{space}#{concatArgs ...}"
+        if .colors
+          print color message
+        else
+          print message

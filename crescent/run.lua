@@ -2,10 +2,12 @@ local loadfile
 loadfile = require('moonscript').loadfile
 do
   local _with_0 = { }
-  _with_0.file = function(path)
-    return pcall(function()
-      return (assert(loadfile(path)))()
-    end)
+  _with_0.file = function(path, ...)
+    local chunk, err = loadfile(path)
+    if not chunk then
+      return err
+    end
+    return pcall(chunk, ...)
   end
   return _with_0
 end
