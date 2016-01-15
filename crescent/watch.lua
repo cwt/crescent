@@ -35,10 +35,10 @@ do
         local modtime = fs.attributes(file, 'modification')
         if currentFiles[file] then
           if modtime > currentFiles[file].modtime then
-            eventCallback('fileChanged', file)
+            eventCallback('changed', file)
           end
         else
-          eventCallback('fileCreated', file)
+          eventCallback('created', file)
         end
         existing[file] = {
           modtime = modtime
@@ -46,7 +46,7 @@ do
       end
       for file in pairs(currentFiles) do
         if not existing[file] then
-          eventCallback('fileRemoved', file)
+          eventCallback('removed', file)
         end
       end
       currentFiles = existing

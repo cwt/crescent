@@ -22,15 +22,15 @@ with {}
         modtime = fs.attributes file, 'modification'
         if currentFiles[file]
           if modtime > currentFiles[file].modtime
-            eventCallback 'fileChanged', file
+            eventCallback 'changed', file
         else
-          eventCallback 'fileCreated', file
+          eventCallback 'created', file
 
         existing[file] = :modtime
 
       for file in pairs currentFiles
         if not existing[file]
-          eventCallback 'fileRemoved', file
+          eventCallback 'removed', file
 
       currentFiles = existing
 

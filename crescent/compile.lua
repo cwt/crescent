@@ -11,13 +11,15 @@ do
     end
     return outputPath
   end
-  _with_0.file = function(sourcePath, outputPath)
+  _with_0.source = function(sourcePath)
     local source, err = util.readFile(sourcePath)
     if not source then
       return false, err
     end
-    local output
-    output, err = to_lua(source)
+    return to_lua(source)
+  end
+  _with_0.write = function(sourcePath, outputPath)
+    local output, err = _with_0.source(sourcePath)
     if not output then
       return false, err
     end

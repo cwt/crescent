@@ -6,6 +6,19 @@ do
   isMoonFile = function(path)
     return (_with_0.getExtension(path)) == 'moon'
   end
+  _with_0.append = function(base, ...)
+    local _list_0 = {
+      ...
+    }
+    for _index_0 = 1, #_list_0 do
+      local array = _list_0[_index_0]
+      for _index_1 = 1, #array do
+        local item = array[_index_1]
+        table.insert(base, item)
+      end
+    end
+    return base
+  end
   _with_0.version = function(major, minor, patch)
     return setmetatable(({
       major = major,
@@ -21,6 +34,17 @@ do
     return pattern:gsub('[%^%$%(%)%%%.%[%]%*%+%-%?]', function(char)
       return '%' .. char
     end)
+  end
+  _with_0.pathInfo = function(path)
+    local folder = _with_0.getFolder(path)
+    local basename = _with_0.getBasename(path)
+    local extension = _with_0.getExtension(path)
+    local base = (path:match('(.+)%.(.-)$')) or basename
+    return {
+      folder = folder,
+      base = base,
+      extension = extension
+    }
   end
   _with_0.getExtension = function(path)
     return (_with_0.getBasename(path)):match('%.([^%.]+)$')
@@ -75,20 +99,17 @@ do
     end
     return true
   end
-  _with_0.collectFiles = function(path, condition)
+  _with_0.collectFiles = function(path)
     local collected = { }
     local _exp_0 = fs.attributes(path, "mode")
     if 'file' == _exp_0 then
-      local file = path
-      if not condition or condition(file) then
-        table.insert(collected, file)
-      end
+      table.insert(collected, path)
     elseif 'directory' == _exp_0 then
       local folder = path
       for file in fs.dir(folder) do
         if file ~= '.' and file ~= '..' then
           local subpath = folder .. '/' .. file
-          local _list_0 = _with_0.collectFiles(subpath, isMoonFile)
+          local _list_0 = _with_0.collectFiles(subpath)
           for _index_0 = 1, #_list_0 do
             file = _list_0[_index_0]
             table.insert(collected, file)

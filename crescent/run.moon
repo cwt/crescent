@@ -3,6 +3,6 @@
 with {}
   .file = (path, ...) ->
     chunk, err = loadfile path
-    return err if not chunk
+    return false, err if not chunk
 
     pcall chunk, ...

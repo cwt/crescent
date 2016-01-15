@@ -5,7 +5,7 @@ do
   _with_0.file = function(path, ...)
     local chunk, err = loadfile(path)
     if not chunk then
-      return err
+      return false, err
     end
     return pcall(chunk, ...)
   end

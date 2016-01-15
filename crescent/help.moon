@@ -1,23 +1,9 @@
-# crescent
-a *lovely* compiler for moonscript - with pretty colors!
+meta = require 'crescent.meta'
+log = require 'crescent.log'
 
-- [Usage](#usage)
-  - [Options](#options)
-  - [Examples](#examples)
-- [Why?](#why)
-- [WARNING](#warning)
+logLevels = table.concat [ level for level in pairs log.levels ], ', '
 
-## Install
-Using luarocks:
-```sh
-$ luarocks install crescent
-```
-
-No other installation options are available at the moment.
-
-## Usage
-```
-crescent v0.3.0
+info = "crescent v#{meta._VERSION}
 
 usage:
   crescent [options]
@@ -73,7 +59,7 @@ options:
     this option adds an implicit --silent to prevent logging output from being written
 
   --log <levels...>
-    set the levels logged by crescent. available levels are: error, warning, info, success
+    set the levels logged by crescent. available levels are: #{logLevels}
 
   --silent
     silence crescent output - only program output will be displayed
@@ -82,47 +68,36 @@ options:
     just in case you're not feelin' the rainbow ;)
 
 examples:
-  crescent -r main.moon "hello world"
-    runs the file "main.moon" with the argument "hello world"
+  crescent -r main.moon \"hello world\"
+    runs the file \"main.moon\" with the argument \"hello world\"
 
   crescent -c src -d lua -w
     compiles src/**/*.moon and outputs files into lua/**/*.lua, then watches and recompiles for changes
 
   crescent -r main.moon --log success error
     run main.moon, but only log 'success' and 'error' levels
+"
 
-```
+with {:info}
+  indent = (content, n) ->
+    content\gsub '[^\r\n]+', (line) -> ('  '\rep n) .. line
 
+  wrap = (content, maxLength) ->
+    content\gsub '[^\r\n]+', (line) ->
+      indent, rest = line\match '(%s*)(.*)'
+      indentLength = #(indent\gsub '\t', ' '\rep 8)
 
-## Why?
-leafo's compiler either didn't have enough functionality, or had the incorrect sort of functionality that I didn't quite want. Not trying to outshine the guy - I'm using his work here in this small project, after all! Only providing an alternate solution to the problem.
+      lines = {''}
+      for word in rest\gmatch '%S+'
+        newline = #lines[#lines] == 0 and word or "#{lines[#lines]} #{word}"
+        if #newline > maxLength - indentLength
+          table.insert lines, word
+        else
+          lines[#lines] = newline
 
-Here's a few things I've done differently:
+      lines = [indent .. line for line in *lines]
+      table.concat lines, '\n'
 
-### Output Directories
-When a directory switch is provided, the compiler will use the *base path* of the input file and replace it with the output directory, as opposed to appending the full path of the input file to the output directory.
-
-```moon
-moonc source/init.moon -t lua
-  source/init.moon -> lua/source/init.lua
-
-crescent -c source/init.moon -d lua
-  source/init.moon -> lua/init.lua
-```
-
-### An Attentive Watcher
-The watcher indexes files that were created and compiles them accordingly, along with removing the .lua sources of any deleted files. This works the same for files that are moved. `moonc` has a bit of this functionality with linotify installed, though it's not natively available for Windows.
-
-### Unified Operations
-I've spliced together both the task of running files and compiling them into one solution. This can be an upside or a downside depending on your perspective, but I felt as though only one binary should be necessary.
-
-### Colors!
-Colors are really nice. So I used them. You can still turn them off if you want.
-
-
-## *WARNING*
-crescent is *not* fully tested and, therefore, **not** production ready! if you happen to use it with something that someone's life depends on, i'm not legally obligated to attend their funeral ;)
-
-on another note, more testing and more feedback is **greatly** appreciated! tell me what you do and don't like about it, and make a few issues if you like!
-
-that aside, have fun! or don't, your choice ^^
+  .print = (maxLineWidth = 80) ->
+    wrapped = wrap info, maxLineWidth
+    print wrapped

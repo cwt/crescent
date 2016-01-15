@@ -43,48 +43,37 @@ do
     peek = function()
       return arguments[current + 1]
     end
-    local cliArgs = { }
     for arg in next do
-      if arg == '--' then
-        for arg in next do
-          table.insert(cliArgs, arg)
-        end
-        break
-      else
-        do
-          local opt = options[arg]
-          if opt then
-            local params
-            do
-              local _accum_0 = { }
-              local _len_0 = 1
-              for i = 1, opt.paramCount do
-                do
-                  local param = peek()
-                  if not param then
-                    break
-                  end
-                  if options[param] then
-                    break
-                  end
-                  if param == '--' then
-                    break
-                  end
-                  next()
-                  _accum_0[_len_0] = param
+      do
+        local opt = options[arg]
+        if opt then
+          local params
+          do
+            local _accum_0 = { }
+            local _len_0 = 1
+            for i = 1, opt.paramCount do
+              do
+                local param = peek()
+                if not param then
+                  break
                 end
-                _len_0 = _len_0 + 1
+                if options[param] then
+                  break
+                end
+                next()
+                _accum_0[_len_0] = param
               end
-              params = _accum_0
+              _len_0 = _len_0 + 1
             end
-            opt.callback(unpack(params))
-          else
-            table.insert(cliArgs, arg)
+            params = _accum_0
           end
+          opt.callback(unpack(params))
+        else
+          return false, "unknown argument \"" .. tostring(arg) .. "\""
         end
       end
     end
-    return cliArgs
+    return true
   end
   return _with_0
 end

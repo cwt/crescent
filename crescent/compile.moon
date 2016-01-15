@@ -11,11 +11,14 @@ with {}
 
     outputPath
 
-  .file = (sourcePath, outputPath) ->
+  .source = (sourcePath) ->
     source, err = util.readFile sourcePath
     return false, err if not source
 
-    output, err = to_lua source
-    return false, err if not output
+    to_lua source
 
+  .write = (sourcePath, outputPath) ->
+    output, err = .source sourcePath
+    return false, err if not output
+      
     util.writeFile outputPath, output

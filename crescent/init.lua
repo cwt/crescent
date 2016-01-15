@@ -13,11 +13,15 @@ return function(...)
   io.stdout:setvbuf('no')
   local options = {
     printHelp = false,
+    compiling = false,
     compilePaths = { },
+    running = false,
     runFiles = { },
-    outputFolder = nil,
     watching = false,
+    watchPaths = { },
+    watchDefault = false,
     watchPollTime = 1,
+    outputFolder = nil,
     logLevels = (function()
       local _accum_0 = { }
       local _len_0 = 1
@@ -27,7 +31,8 @@ return function(...)
       end
       return _accum_0
     end)(),
-    colors = true
+    colors = true,
+    stdout = false
   }
   local cliErrors = { }
   local verify
@@ -46,24 +51,23 @@ return function(...)
       if not (verify(..., "no paths were given to --compile")) then
         return 
       end
+      options.compiling = true
       local _list_0 = {
         ...
       }
       for _index_0 = 1, #_list_0 do
         local path = _list_0[_index_0]
-        table.insert(options.compilePaths, path)
+        options.compilePaths[path] = true
       end
     end)
     cli.option('--run', math.huge, function(file, ...)
       if not (verify(file, "no file or arguments were given to --run")) then
         return 
       end
-      return table.insert(options.runFiles, {
-        file = file,
-        args = {
-          select(2, ...)
-        }
-      })
+      options.running = true
+      options.runFiles[file] = {
+        ...
+      }
     end)
     cli.option('--output-folder', 1, function(folder)
       if not (verify(folder, "no folders were given to --output-folder")) then
@@ -77,11 +81,23 @@ return function(...)
       end
       options.watchPollTime = time
     end)
-    cli.option('--watch', 0, function()
+    cli.option('--watch', math.huge, function(...)
       options.watching = true
+      if ... then
+        local _list_0 = {
+          ...
+        }
+        for _index_0 = 1, #_list_0 do
+          local path = _list_0[_index_0]
+          options.watchPaths[path] = true
+        end
+      else
+        options.watchDefault = true
+      end
     end)
-    cli.option('--moonify', 1, function(path)
-      return log("sorry, moonify doesn't work yet!")
+    cli.option('--pipe', 0, function()
+      options.pipe = true
+      options.logLevels = { }
     end)
     cli.option('--log', math.huge, function(...)
       local levelString = table.concat((function()
@@ -117,24 +133,34 @@ return function(...)
     cli.option('--no-colors', 0, function()
       options.colors = false
     end)
+    cli.option('--moonify', 1, function(path)
+      return log("sorry, moonify doesn't work yet!")
+    end)
     cli.alias('-h', '--help')
     cli.alias('-r', '--run')
     cli.alias('-c', '--compile')
     cli.alias('-d', '--output-folder')
     cli.alias('-w', '--watch')
-    cli.parse({
+    cli.alias('-p', '--pipe')
+    local success, err = cli.parse({
       ...
     })
+    if not success then
+      table.insert(cliErrors, err)
+    end
   end
   log.these(options.logLevels)
   log.colors = options.colors
   if #cliErrors > 0 then
-    local _list_0 = cliErrors
-    for _index_0 = 1, #_list_0 do
-      local err = _list_0[_index_0]
+    for _index_0 = 1, #cliErrors do
+      local err = cliErrors[_index_0]
       log.error(err)
     end
-  elseif options.printHelp or (#options.runFiles == 0 and #options.compilePaths == 0) then
+    print()
+    return help.print()
+  elseif options.printHelp or (not options.compiling and not options.running) then
+    log.info('no --compile or --run instructions given')
+    print()
     return help.print()
   else
     local runFile
@@ -182,103 +208,93 @@ return function(...)
       local _list_0 = util.collectFiles(path)
       for _index_0 = 1, #_list_0 do
         local file = _list_0[_index_0]
-        local outputFile = compile.outputPath(file, basePath, options.outputFolder)
-        log.info('compiling', file)
-        local success, err = compile.file(file, outputFile)
-        if success then
-          log.success('compiled', outputFile)
-        else
-          log.error(err)
+        if (util.getExtension(file)) == 'moon' then
+          local outputFile = compile.outputPath(file, basePath, options.outputFolder)
+          log.info('compiling', file)
+          local result, err
+          if options.pipe then
+            result, err = compile.source(file)
+          else
+            result, err = compile.write(file, outputFile)
+          end
+          if result then
+            log.success('compiled', outputFile)
+            if options.pipe then
+              io.stdout:write(result, '\n')
+            end
+          else
+            log.error(err)
+          end
         end
       end
     end
-    local _list_0 = options.compilePaths
-    for _index_0 = 1, #_list_0 do
-      local path = _list_0[_index_0]
-      compilePath(path, path)
+    local runTasks
+    runTasks = function()
+      for path in pairs(options.compilePaths) do
+        compilePath(path, path)
+      end
+      for file, args in pairs(options.runFiles) do
+        runFile(file, args)
+      end
     end
-    local _list_1 = options.runFiles
-    for _index_0 = 1, #_list_1 do
-      local file = _list_1[_index_0]
-      runFile(file.file, file.args)
+    runTasks()
+    do
+      local _ = nothing
     end
     if options.watching then
+      local glob
+      glob = function(path)
+        return (fs.attributes(path, 'mode')) == 'directory' and path .. '/*' or path
+      end
+      local remove
+      remove = function(path, sourceFile)
+        local success, err = os.remove(path)
+        if success then
+          return log.info("removed " .. tostring(outputPath) .. " (source file " .. tostring(sourceFile) .. " was removed)")
+        else
+          return log.error("could not remove " .. tostring(outputPath) .. ": " .. tostring(err))
+        end
+      end
+      local watchDefault
+      watchDefault = function()
+        for basePath in pairs(options.compilePaths) do
+          watch.path(basePath, function(event, ...)
+            local _exp_0 = event
+            if 'changed' == _exp_0 or 'created' == _exp_0 then
+              return compilePath(..., basePath)
+            elseif 'removed' == _exp_0 then
+              local outputPath = compile.outputPath(..., basePath, options.outputFolder)
+              return remove(outputPath, ...)
+            end
+          end)
+        end
+        for scriptPath, args in pairs(options.runFiles) do
+          watch.path(scriptPath, function(event, ...)
+            local _exp_0 = event
+            if 'changed' == _exp_0 or 'created' == _exp_0 then
+              return runFile(scriptPath, args)
+            end
+          end)
+        end
+      end
+      local watchPaths
+      watchPaths = function()
+        for path in pairs(options.watchPaths) do
+          watch.path(path, function(event, ...)
+            local _exp_0 = event
+            if 'changed' == _exp_0 or 'created' == _exp_0 or 'removed' == _exp_0 then
+              log.info(event, ...)
+              return runTasks()
+            end
+          end)
+        end
+      end
       print()
       log.info("starting watch loop!")
-      local logPaths = { }
-      local _list_2 = options.compilePaths
-      for _index_0 = 1, #_list_2 do
-        local path = _list_2[_index_0]
-        table.insert(logPaths, path)
+      if options.watchDefault then
+        watchDefault()
       end
-      local _list_3 = options.runFiles
-      for _index_0 = 1, #_list_3 do
-        local file = _list_3[_index_0]
-        table.insert(logPaths, file.file)
-      end
-      for _index_0 = 1, #logPaths do
-        local path = logPaths[_index_0]
-        watch.path(path, function(event, ...)
-          local _exp_0 = event
-          if 'initialized' == _exp_0 then
-            local paths
-            do
-              local _accum_0 = { }
-              local _len_0 = 1
-              for _index_1 = 1, #logPaths do
-                path = logPaths[_index_1]
-                local _exp_1 = fs.attributes(path, 'mode')
-                if 'file' == _exp_1 then
-                  _accum_0[_len_0] = path
-                elseif 'directory' == _exp_1 then
-                  _accum_0[_len_0] = path .. '/**/*.moon'
-                end
-                _len_0 = _len_0 + 1
-              end
-              paths = _accum_0
-            end
-            return log.info("watching", table.concat(paths, ', '))
-          elseif 'fileChanged' == _exp_0 then
-            print()
-            return log.info("changed", ...)
-          elseif 'fileCreated' == _exp_0 then
-            print()
-            return log.info("created", ...)
-          elseif 'fileRemoved' == _exp_0 then
-            print()
-            return log.info("removed", ...)
-          end
-        end)
-      end
-      local _list_4 = options.compilePaths
-      for _index_0 = 1, #_list_4 do
-        local sourcePath = _list_4[_index_0]
-        watch.path(sourcePath, function(event, ...)
-          local _exp_0 = event
-          if 'fileChanged' == _exp_0 or 'fileCreated' == _exp_0 then
-            return compilePath(..., sourcePath)
-          elseif 'fileRemoved' == _exp_0 then
-            local outputPath = compile.outputPath(..., sourcePath, options.outputFolder)
-            local ok, err = os.remove(outputPath)
-            if ok then
-              return log.info("deleted", outputPath)
-            else
-              return log.error("could not remove " .. tostring(outputPath) .. ": " .. tostring(err))
-            end
-          end
-        end)
-      end
-      local _list_5 = options.runFiles
-      for _index_0 = 1, #_list_5 do
-        local _des_0 = _list_5[_index_0]
-        local file, args
-        file, args = _des_0.file, _des_0.args
-        watch.path(file, function(event, ...)
-          if event == 'fileChanged' then
-            return runFile(file, args)
-          end
-        end)
-      end
+      watchPaths()
       while true do
         sleep(options.watchPollTime)
         watch.loop()
